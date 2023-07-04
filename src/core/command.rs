@@ -1,178 +1,126 @@
-use std::{
-    
-    fmt::{
-
-        Formatter, 
-        Display, 
-        Result as FmtResult,
-    }
-};
-
 use serde::{Serialize};
 
-use super::error::{CoreError};
+use super::util::{self, 
+    
+    UtilityError
+};
 
-trait DynamicProperty {
-    fn to_string(&self) -> Result<String, CoreError>;
+use thiserror::{Error};
+
+#[derive(Error, Debug)]
+pub enum CommandError {
+    #[error("message encoding failed, reason: {0}")]
+    MessageEncoding(String),
+    #[error("property construction failed, reason: {0}")]
+    ConstructProperty(String),
+    #[error("command construction failed, reason: {0}")]
+    Construct(String),
 }
 
-
-#[derive(Debug)]
-#[derive(Serialize)]
-pub enum Property<T: Serialize + Display> {
-    Value(T),
-    KeyValue(String, T),
+trait Construct {
+    fn construct(&self) -> Result<String, CommandError>;
 }
 
-impl<T: Serialize + Display> DynamicProperty for Property<T> {
-    fn to_string(&self) -> Result<String, CoreError> {
-        Ok(match self {
-            Self::KeyValue(key, value) => {
-                let json = serde_json::to_string(value)?;
-                let value = urlencoding::encode(json.as_str());
+impl<T: Serialize> Construct for (String, T) {
+    fn construct(&self) -> Result<String, CommandError> {
+        let (key, value) = self;
 
-                format!("{key}={value}")
-            },
-            Self::Value(value) => {
-                let json = serde_json::to_string(value)?;
-                let value = urlencoding::encode(json.as_str());
+        let json = serde_json::to_string(value)
+            .map_err(|_| CommandError::ConstructProperty(format! {
+                "failed to serialize value for key: {key}"
+            }))?;
 
-                format!("{value}={value}")
-            }
-        })
+        let value = urlencoding::encode({
+            json.as_str()
+        });
+
+        Ok(format!("{key}={value}"))
     }
 }
 
-pub struct CommandProperties<'a> {
-    properties: Vec<Box<dyn DynamicProperty + 'a>>
-}
-
-impl<'a> CommandProperties<'a> {
-    pub fn new() -> Self {
-        Self { properties: Vec::new() }
-    }
-
-    pub fn with<T: Serialize + Display + 'a>(mut self, property: Property<T>) -> Self {
-        self.properties.push(Box::new(property));
-        self
-    }
-
-    pub(crate) fn is_empty(&self) -> bool {
-        self.properties.is_empty()
-    }
-
-    fn formatter(properties: &[Box<dyn DynamicProperty + 'a>]) -> Result<String, CoreError> {
-        match properties {
-            &[] => {
-                Ok(format!(""))
-            }
-            &[ref a] => {
-                let a = a.to_string()?;
-                
-                Ok(format!("{a}"))
-            }
-            &[ref a, ref b] => {
-                let a = a.to_string()?;
-                let b = b.to_string()?;
-                
-                Ok(format!("{a},{b}"))
-            }
-            &[ref a, ref b, ref c @ .. ] => {
-                let a = a.to_string()?;
-                let b = b.to_string()?;
-                let c = Self::formatter(c)?;
-
-                Ok(format!("{a},{b},{c}"))
-            }
-        }
-    }
-}
-
-impl<'a> Display for CommandProperties<'a> {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> FmtResult {
-        if let Ok(printed) = Self::formatter(self.properties.as_slice()) {
-            write!(fmt, "{printed}")?
-        }
-
-        Ok(())
-    }
-}
-
-pub struct Command<'a> {
+pub struct Command {
     command: String,
     message: String,
-    properties: Option<CommandProperties<'a>>,
+    properties: Vec<String>,
 }
 
-impl<'a> Command<'a> {
-    pub fn new(command: impl AsRef<str>, message: impl AsRef<str>) -> Self {
-        let properties = None;
+impl Command {
+    pub fn new(command: impl AsRef<str>, message: impl Serialize) -> Result<Self, CommandError> {
+        Ok(Self { 
 
-        Self { 
-
+            properties: Vec::new(),
+            message: util::to_command_value_escaped(message).map_err(|error| match error {
+                UtilityError::EncodeEscapedCommandValue(message) => CommandError::MessageEncoding(message),
+                _ => CommandError::MessageEncoding(format! {
+                    "unknown!"
+                }),
+            })?,
             command: command.as_ref()
                 .to_owned(), 
-            message: message.as_ref()
-                .to_string(),
-            properties,
-        }
+        })
     }
 
-    pub fn with_properties(command: impl AsRef<str>, message: impl AsRef<str>, mut properties: Option<CommandProperties<'a>>) -> Self {
-        if let Some(ref inner) = properties {
-            if inner.is_empty() {
-                properties = None
+    pub fn with_property<T: Serialize>(mut self, property: (String, T)) -> Result<Self, CommandError> {
+        self.properties.push(property.construct()?);
+
+        Ok(self)
+    }
+
+    pub fn construct(&self) -> Result<String, CommandError> {
+        let Self { 
+            
+            properties,
+            command, 
+            message,
+            
+        } = self;
+
+        fn construct_properties(properties: &[String]) -> Result<String, CommandError> {
+            match properties {
+                [ref a, ref b, ref c @ .. ] => {
+                    Ok(format!("{a},{b},{c}", c = {
+                        construct_properties(c)?
+                    }))
+                }
+                [ref a, ref b] => {
+                    Ok(format!("{a},{b}"))
+                }
+                [ref a] => {
+                    Ok(format!("{a}"))
+                }
             }
         }
 
-        Self { 
+        if properties.is_empty() {
 
-            command: command.as_ref()
-                .to_owned(), 
-            message: message.as_ref()
-                .to_string(),
-            properties,
+            Ok(format!("::{command}::{message}"))
         }
-    }
 
-    pub fn with_property<T: Serialize + Display + 'a>(mut self, property: Property<T>) -> Self {
-        if let Some(properties) = self.properties {
-            self.properties = Some(properties.with(property));
-        }
-        
         else {
 
-            self.properties = Some(CommandProperties::new()
-                .with(property));
-        }
+            let properties = construct_properties({
+                self.properties.as_slice()
+            })?;
 
-        self
+            Ok(format!("::{command} {properties}::{message}"))
+        }
     }
 
-    pub fn issue(&self) {
-        println!("{self}")
+    pub fn issue(&self) -> Result<(), CommandError> {
+        let command = self.construct()?;
+
+        Ok(println!("{command}"))
     }
 }
 
-fn get_
-
-impl<'a> Display for Command<'a> {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> FmtResult {
-        let Self { command, message, properties } = self;
-        let message = urlencoding::encode(message);
-
-        if let Some(properties) = properties {
-            return write!(fmt, "::{command} {properties}::{message}")
-        }
-        
-        write!(fmt, "::{command}::{message}")
-    }
+pub fn issue(command: impl AsRef<str>) -> Result<(), CommandError> {
+    Command::new(command, "")?.issue()
 }
 
-pub fn issue_command<'a>(command: Command<'a>) {
+pub fn issue_message(command: impl AsRef<str>, message: impl Serialize) -> Result<(), CommandError>  {
+    Command::new(command, message)?.issue()
+}
+
+pub fn issue_command(command: Command) -> Result<(), CommandError> {
     command.issue()
-}
-
-pub fn issue<'a>(command: impl AsRef<str>, message: impl AsRef<str>) {
-    Command::new(command, message).issue()
 }
