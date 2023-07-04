@@ -45,7 +45,7 @@ pub fn issue_file_command(command: impl Display, message: impl AsRef<str> + Seri
 
     let command_value = super::util::to_command_value(message)?;
 
-    Ok(write!(file, "{command_value}")?)
+    Ok(writeln!(file, "{command_value}")?)
 }
 
 pub fn construct_key_value_message(key: impl AsRef<str>, value: impl Serialize) -> Result<String, FileCommandError> {
@@ -70,7 +70,7 @@ pub fn construct_key_value_message(key: impl AsRef<str>, value: impl Serialize) 
 
     {
         use std::fmt::{Write};
-        
+
         writeln!(message, "{key}<<{delimiter}")?;
         writeln!(message, "{value}")?;
         write!(message, "{delimiter}")?;
