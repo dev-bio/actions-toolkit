@@ -15,6 +15,8 @@ pub enum CommandError {
     ConstructProperty(String),
     #[error("command construction failed, reason: {0}")]
     Construct(String),
+    #[error("utility error, reason: {0}")]
+    Utility(#[from] UtilityError),
 }
 
 trait Construct {
@@ -30,9 +32,9 @@ impl<T: Serialize> Construct for (String, T) {
                 "failed to serialize value for key: {key}"
             }))?;
 
-        let value = urlencoding::encode({
+        let value = util::to_command_property({
             json.as_str()
-        });
+        })?;
 
         Ok(format!("{key}={value}"))
     }
@@ -49,7 +51,7 @@ impl Command {
         Ok(Self { 
 
             properties: Vec::new(),
-            message: util::to_command_value_escaped(message).map_err(|error| match error {
+            message: util::to_command_message(message).map_err(|error| match error {
                 UtilityError::EncodeEscapedCommandValue(message) => CommandError::MessageEncoding(message),
                 _ => CommandError::MessageEncoding(format! {
                     "unknown!"

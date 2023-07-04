@@ -68,9 +68,9 @@ pub fn construct_key_value_message(key: impl AsRef<str>, value: impl Serialize) 
 
     let mut message = String::new();
 
-    use std::fmt::{Write};
-
     {
+        use std::fmt::{Write};
+        
         writeln!(message, "{key}<<{delimiter}")?;
         writeln!(message, "{value}")?;
         write!(message, "{delimiter}")?;

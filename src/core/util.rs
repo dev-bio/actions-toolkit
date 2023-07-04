@@ -1,4 +1,8 @@
-use serde_json::error::{Error as JsonError};
+use serde_json::{
+    error::{Error as JsonError},
+    Value as JsonValue,
+};
+
 use serde::{Serialize};
 use thiserror::{Error};
 
@@ -13,11 +17,25 @@ pub enum UtilityError {
 }
 
 pub fn to_command_value(ref value: impl Serialize) -> Result<String, UtilityError> {
-    Ok(serde_json::to_string(value)?)
+    Ok(if let JsonValue::String(value) = serde_json::to_value(value)? { value } else {
+        serde_json::to_string(value)?
+    })
 }
 
-pub fn to_command_value_escaped(ref value: impl Serialize) -> Result<String, UtilityError> {
-    Ok(urlencoding::encode(serde_json::to_string(value)?.as_str()).into_owned())
+pub fn to_command_message(ref message: impl Serialize) -> Result<String, UtilityError> {
+    Ok(self::to_command_value(message)?
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
+        .replace("%", "%25"))
+}
+
+pub fn to_command_property(ref message: impl Serialize) -> Result<String, UtilityError> {
+    Ok(self::to_command_value(message)?
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
+        .replace("%", "%25")
+        .replace(":", "%3A")
+        .replace(",", "%2C"))
 }
 
 pub fn write_std_eol() {
