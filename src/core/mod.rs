@@ -118,17 +118,22 @@ pub fn get_state(name: impl AsRef<str>) -> Option<String> {
     let name = name.as_ref()
         .to_owned();
 
-    std::env::var(format!("STATE_{name}")).ok()
+    if let Some(state) = std::env::var(format!("STATE_{name}")).ok() {
+        if !(state.is_empty()) {
+            return Some(state)
+        }
+    }
+
+    None
 }
 
 pub fn set_command_echo(enabled: bool) -> Result<(), CoreError>  {
     Ok(command::issue_message("echo", if enabled { "on" } else { "off" })?)
 }
 
-pub fn fail(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    self::error(message)?;
-
-    std::process::exit(1)
+pub fn fail(message: impl AsRef<str> + Display) -> ! {
+    let _ = self::error(message.as_ref());
+    panic!("{message}");
 }
 
 pub fn info(message: impl Display) {
