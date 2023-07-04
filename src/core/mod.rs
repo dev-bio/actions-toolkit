@@ -31,8 +31,8 @@ pub fn export_variable(name: impl AsRef<str>, ref value: impl Serialize + Displa
         .with_property(("name".to_owned(), name))?)?)
 }
 
-pub fn set_secret(secret: String) -> Result<(), CoreError> {
-    Ok(command::issue_command(Command::new("add-mask", secret)?)?)
+pub fn add_secret_mask(secret: impl AsRef<str>) -> Result<(), CoreError> {
+    Ok(command::issue_command(Command::new("add-mask", secret.as_ref())?)?)
 }
 
 pub fn add_path(path: impl AsRef<str>) -> Result<(), CoreError> {
