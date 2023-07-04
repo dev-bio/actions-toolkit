@@ -75,35 +75,34 @@ impl Command {
             
         } = self;
 
-        fn construct_properties(properties: &[String]) -> Result<String, CommandError> {
+        fn construct_properties(properties: &[String]) -> Result<Option<String>, CommandError> {
             match properties {
-                [ref a, ref b, ref c @ .. ] => {
-                    Ok(format!("{a},{b},{c}", c = {
-                        construct_properties(c)?
-                    }))
-                }
-                [ref a, ref b] => {
-                    Ok(format!("{a},{b}"))
+                [] => {
+                    Ok(None)
                 }
                 [ref a] => {
-                    Ok(format!("{a}"))
+                    Ok(Some(format!("{a}")))
+                }
+                [ref a, ref b] => {
+                    Ok(Some(format!("{a},{b}")))
+                }
+                [ref a, ref b, ref c @ .. ] => {
+                    if let Some(c) = construct_properties(c)? {
+                        return Ok(Some(format!("{a},{b},{c}")))
+                    }
+
+                    Ok(Some(format!("{a},{b}")))
                 }
             }
         }
 
-        if properties.is_empty() {
-
-            Ok(format!("::{command}::{message}"))
+        if let Some(properties) = construct_properties(properties.as_slice())? {
+            if !(properties.is_empty()) { 
+                return Ok(format!("::{command} {properties}::{message}")) 
+            }
         }
 
-        else {
-
-            let properties = construct_properties({
-                self.properties.as_slice()
-            })?;
-
-            Ok(format!("::{command} {properties}::{message}"))
-        }
+        Ok(format!("::{command}::{message}"))
     }
 
     pub fn issue(&self) -> Result<(), CommandError> {

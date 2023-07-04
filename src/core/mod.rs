@@ -1,16 +1,14 @@
+use std::fmt::Display;
+
+use serde::{Serialize};
+
 pub mod file_command;
 pub mod command;
 pub mod error;
 pub mod util;
 
-use std::fmt::Display;
-
 use command::{Command};
 use error::{CoreError};
-
-use serde::{Serialize};
-
-use self::command::CommandProperties;
 
 pub fn export_variable(name: impl AsRef<str>, ref value: impl Serialize + Display) -> Result<(), CoreError> {
     let command_message = util::to_command_value(value)?;
@@ -23,18 +21,18 @@ pub fn export_variable(name: impl AsRef<str>, ref value: impl Serialize + Displa
 
     if let Ok(variable) = std::env::var("GITHUB_ENV") {
         if !(variable.is_empty()) {
-            return file_command::issue_file_command("ENV", {
+            return Ok(file_command::issue_file_command("ENV", {
                 file_command::construct_key_value_message(name.as_str(), value)?
-            })
+            })?)
         }
     }
 
-    command::issue_command(Command::new("set-env", command_message)?
-        .with_property(("name".to_owned(), name)))
+    Ok(command::issue_command(Command::new("set-env", command_message)?
+        .with_property(("name".to_owned(), name))?)?)
 }
 
 pub fn set_secret(secret: String) -> Result<(), CoreError> {
-    command::issue_command(Command::new("add-mask", secret)?)
+    Ok(command::issue_command(Command::new("add-mask", secret)?)?)
 }
 
 pub fn add_path(path: impl AsRef<str>) -> Result<(), CoreError> {
@@ -46,7 +44,7 @@ pub fn add_path(path: impl AsRef<str>) -> Result<(), CoreError> {
         })?;
     }
 
-    command::issue_command(Command::new("add-path", path)?)
+    Ok(command::issue_command(Command::new("add-path", path)?)?)
 }
 
 pub fn get_input(name: impl AsRef<str>) -> Option<String> {
@@ -89,15 +87,15 @@ pub fn set_output(name: impl AsRef<str>, ref value: impl Serialize + Display) ->
 
     if let Ok(variable) = std::env::var("GITHUB_OUTPUT") {
         if !(variable.is_empty()) {
-            return file_command::issue_file_command("OUTPUT", {
+            return Ok(file_command::issue_file_command("OUTPUT", {
                 file_command::construct_key_value_message(name, value)?
-            })
+            })?)
         }
     }
 
     util::write_std_eol();
-    command::issue_command(Command::new("set-output", util::to_command_value(value)?)?
-        .with_property(("name".to_owned(), name)))
+    Ok(command::issue_command(Command::new("set-output", util::to_command_value(value)?)?
+        .with_property(("name".to_owned(), name))?)?)
 }
 
 pub fn set_state(name: impl AsRef<str>, ref value: impl Serialize + Display) -> Result<(), CoreError> {
@@ -106,14 +104,14 @@ pub fn set_state(name: impl AsRef<str>, ref value: impl Serialize + Display) -> 
 
     if let Ok(variable) = std::env::var("GITHUB_STATE") {
         if !(variable.is_empty()) {
-            return file_command::issue_file_command("STATE", {
+            return Ok(file_command::issue_file_command("STATE", {
                 file_command::construct_key_value_message(name, value)?
-            })
+            })?)
         }
     }
 
-    command::issue_command(Command::new("save-state", util::to_command_value(value)?)?
-        .with_property(("name".to_owned(), name)))
+    Ok(command::issue_command(Command::new("save-state", util::to_command_value(value)?)?
+        .with_property(("name".to_owned(), name))?)?)
 }
 
 pub fn get_state(name: impl AsRef<str>) -> Option<String> {
@@ -124,7 +122,7 @@ pub fn get_state(name: impl AsRef<str>) -> Option<String> {
 }
 
 pub fn set_command_echo(enabled: bool) -> Result<(), CoreError>  {
-    command::issue_message("echo", if enabled { "on" } else { "off" })
+    Ok(command::issue_message("echo", if enabled { "on" } else { "off" })?)
 }
 
 pub fn fail(message: impl AsRef<str>) -> Result<(), CoreError>  {
@@ -138,41 +136,25 @@ pub fn info(message: impl Display) {
 }
 
 pub fn debug(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    command::issue_message("debug", message.as_ref())
-}
-
-pub fn debug_with_properties(message: impl AsRef<str>, properties: CommandProperties) -> Result<(), CoreError>  {
-    command::issue_command(Command::with_properties("debug", message.as_ref(), properties)?)
+    Ok(command::issue_message("debug", message.as_ref())?)
 }
 
 pub fn notice(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    command::issue_message("notice", message.as_ref())
-}
-
-pub fn notice_with_properties(message: impl AsRef<str>, properties: CommandProperties) -> Result<(), CoreError>  {
-    command::issue_command(Command::with_properties("notice", message.as_ref(), properties)?)
+    Ok(command::issue_message("notice", message.as_ref())?)
 }
 
 pub fn warning(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    command::issue_message("warning", message.as_ref())
-}
-
-pub fn warning_with_properties(message: impl AsRef<str>, properties: CommandProperties) -> Result<(), CoreError>  {
-    command::issue_command(Command::with_properties("warning", message.as_ref(), properties)?)
+    Ok(command::issue_message("warning", message.as_ref())?)
 }
 
 pub fn error(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    command::issue_message("error", message.as_ref())
-}
-
-pub fn error_with_properties(message: impl AsRef<str>, properties: CommandProperties) -> Result<(), CoreError>  {
-    command::issue_command(Command::with_properties("error", message.as_ref(), properties)?)
+    Ok(command::issue_message("error", message.as_ref())?)
 }
 
 pub fn start_group(name: impl AsRef<str>) -> Result<(), CoreError>  {
-    command::issue_message("group", name.as_ref())
+    Ok(command::issue_message("group", name.as_ref())?)
 }
 
 pub fn end_group() -> Result<(), CoreError>  {
-    command::issue("endgroup")
+    Ok(command::issue("endgroup")?)
 }
