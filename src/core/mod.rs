@@ -131,11 +131,6 @@ pub fn set_command_echo(enabled: bool) -> Result<(), CoreError>  {
     Ok(command::issue_message("echo", if enabled { "on" } else { "off" })?)
 }
 
-pub fn fail(message: impl AsRef<str> + Display) -> ! {
-    let _ = self::error(message.as_ref());
-    panic!("{message}");
-}
-
 pub fn info(message: impl Display) {
     println!("{message}")
 }
