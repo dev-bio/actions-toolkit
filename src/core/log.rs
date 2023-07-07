@@ -1,6 +1,14 @@
-use std::sync::{Mutex, Arc};
+use std::{
 
-use thread_local::{ThreadLocal};
+    sync::{
+        
+        Mutex, 
+        Arc,
+    },
+
+    cell::{RefCell},
+};
+
 use once_cell::sync::{Lazy};
 use thiserror::{Error};
 
@@ -10,9 +18,11 @@ static LOG_WRITER: Lazy<Mutex<LogWriter>> = Lazy::new(|| {
     Mutex::new(LogWriter)
 });
 
-static LOG_STATE: Lazy<ThreadLocal<LogState>> = Lazy::new(|| {
-    ThreadLocal::new()
-});
+thread_local!{
+    
+    static LOG_STATE: RefCell<LogState> = RefCell::new(LogState::new());
+
+}
 
 
 #[derive(Error, Debug)]
@@ -179,43 +189,34 @@ impl Drop for LogState {
 }
 
 pub fn debug(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    let state = LOG_STATE.get_or(|| LogState::new());
-    Ok(state.log(LogLine::Debug({
-        message.as_ref()
-            .to_owned()
-    }))?)
+    Ok(LOG_STATE.with(|state| state.borrow().log(LogLine::Debug({
+        message.as_ref().to_owned()
+    })))?)
 }
 
 pub fn notice(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    let state = LOG_STATE.get_or(|| LogState::new());
-    Ok(state.log(LogLine::Notice({
-        message.as_ref()
-            .to_owned()
-    }))?)
+    Ok(LOG_STATE.with(|state| state.borrow().log(LogLine::Notice({
+        message.as_ref().to_owned()
+    })))?)
 }
 
 pub fn warning(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    let state = LOG_STATE.get_or(|| LogState::new());
-    Ok(state.log(LogLine::Warning({
-        message.as_ref()
-            .to_owned()
-    }))?)
+    Ok(LOG_STATE.with(|state| state.borrow().log(LogLine::Warning({
+        message.as_ref().to_owned()
+    })))?)
 }
 
 pub fn error(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    let state = LOG_STATE.get_or(|| LogState::new());
-    Ok(state.log(LogLine::Error({
-        message.as_ref()
-            .to_owned()
-    }))?)
+    Ok(LOG_STATE.with(|state| state.borrow().log(LogLine::Error({
+        message.as_ref().to_owned()
+    })))?)
 }
 
 pub fn begin_group(name: impl AsRef<str>) -> Result<(), CoreError>  {
-    let state = LOG_STATE.get_or(|| LogState::new());
-    Ok(state.begin_group(name)?)
+    Ok(LOG_STATE.with(|state| state.borrow().begin_group(name))?)
+    
 }
 
 pub fn end_group() -> Result<(), CoreError>  {
-    let state = LOG_STATE.get_or(|| LogState::new());
-    Ok(state.end_group()?)
+    Ok(LOG_STATE.with(|state| state.borrow().end_group())?)
 }
