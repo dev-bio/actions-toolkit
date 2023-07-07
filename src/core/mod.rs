@@ -6,6 +6,7 @@ pub mod file_command;
 pub mod command;
 pub mod error;
 pub mod util;
+pub mod log;
 
 use command::{Command};
 use error::{CoreError};
@@ -129,32 +130,4 @@ pub fn get_state(name: impl AsRef<str>) -> Option<String> {
 
 pub fn set_command_echo(enabled: bool) -> Result<(), CoreError>  {
     Ok(command::issue_message("echo", if enabled { "on" } else { "off" })?)
-}
-
-pub fn info(message: impl Display) {
-    println!("{message}")
-}
-
-pub fn debug(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    Ok(command::issue_message("debug", message.as_ref())?)
-}
-
-pub fn notice(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    Ok(command::issue_message("notice", message.as_ref())?)
-}
-
-pub fn warning(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    Ok(command::issue_message("warning", message.as_ref())?)
-}
-
-pub fn error(message: impl AsRef<str>) -> Result<(), CoreError>  {
-    Ok(command::issue_message("error", message.as_ref())?)
-}
-
-pub fn start_group(name: impl AsRef<str>) -> Result<(), CoreError>  {
-    Ok(command::issue_message("group", name.as_ref())?)
-}
-
-pub fn end_group() -> Result<(), CoreError>  {
-    Ok(command::issue("endgroup")?)
 }

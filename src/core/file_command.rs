@@ -5,12 +5,11 @@ use std::{
     fs::{OpenOptions},
 };
 
+use thiserror::{Error};
 use serde::{Serialize};
 use uuid::{Uuid};
 
 use super::util::{UtilityError};
-
-use thiserror::{Error};
 
 #[derive(Error, Debug)]
 pub enum FileCommandError {
