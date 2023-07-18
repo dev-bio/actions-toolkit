@@ -59,9 +59,7 @@ pub fn get_input(name: impl AsRef<str>) -> Option<String> {
 }
 
 pub fn get_multiline_input(name: impl AsRef<str>) -> Option<Vec<String>> {
-    Some(get_input(name)?.lines().map(|line| {
-        line.to_owned()
-    }).collect())
+    get_input(name).map(|input| input.lines().map(|line| line.to_owned()).collect())
 }
 
 pub fn get_boolean_input(name: impl AsRef<str>) -> Option<bool> {
