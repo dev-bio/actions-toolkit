@@ -55,13 +55,23 @@ pub fn get_input(name: impl AsRef<str>) -> Option<String> {
     let name = tokens.join("_")
         .to_uppercase();
 
-    std::env::var(format!("INPUT_{name}")).ok()
+    std::env::var(format!("INPUT_{name}")).ok().map(|input| {
+        let trimmed = input.trim();
+        
+        if trimmed.is_empty() { None } else { 
+            Some(trimmed.to_owned()) 
+        }
+    })?
 }
 
 pub fn get_multiline_input(name: impl AsRef<str>) -> Option<Vec<String>> {
-    get_input(name).map(|input| input.lines()
-        .map(|line| line.trim().to_owned())
-        .collect())
+    get_input(name).map(|input| input.lines().filter_map(|line| {
+        let trimmed = line.trim();
+
+        if trimmed.is_empty() { None } else { 
+            Some(trimmed.to_owned()) 
+        }
+    }).collect())
 }
 
 pub fn get_boolean_input(name: impl AsRef<str>) -> Option<bool> {
