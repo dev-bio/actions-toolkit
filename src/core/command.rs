@@ -9,14 +9,14 @@ use thiserror::{Error};
 
 #[derive(Error, Debug)]
 pub enum CommandError {
-    #[error("message encoding failed, reason: {0}")]
-    MessageEncoding(String),
-    #[error("property construction failed, reason: {0}")]
-    ConstructProperty(String),
-    #[error("command construction failed, reason: {0}")]
-    Construct(String),
-    #[error("utility error, reason: {0}")]
+    #[error("Utility error!")]
     Utility(#[from] UtilityError),
+    #[error("Encoding message failed, reason: {reason}")]
+    MessageEncoding { reason: String },
+    #[error("property construction failed, reason: {reason}")]
+    ConstructProperty { reason: String },
+    #[error("command construction failed, reason: {reason}")]
+    Construct { reason: String },
 }
 
 trait Construct {
@@ -28,9 +28,9 @@ impl<T: Serialize> Construct for (String, T) {
         let (key, value) = self;
 
         let json = serde_json::to_string(value)
-            .map_err(|_| CommandError::ConstructProperty(format! {
-                "failed to serialize value for key: {key}"
-            }))?;
+            .map_err(|_| CommandError::ConstructProperty {
+                reason: format!("failed to serialize value for key: {key}")
+            })?;
 
         let value = util::to_command_property({
             json.as_str()
@@ -52,10 +52,12 @@ impl Command {
 
             properties: Vec::new(),
             message: util::to_command_message(message).map_err(|error| match error {
-                UtilityError::EncodeEscapedCommandValue(message) => CommandError::MessageEncoding(message),
-                _ => CommandError::MessageEncoding(format! {
-                    "unknown!"
-                }),
+                UtilityError::EncodeEscapedCommandValue(message) => CommandError::MessageEncoding {
+                    reason: message
+                },
+                _ => CommandError::MessageEncoding {
+                    reason: "unknown!".to_owned()
+                },
             })?,
             command: command.as_ref()
                 .to_owned(), 

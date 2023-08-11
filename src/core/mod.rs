@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use std::fmt::{Display as FmtDisplay};
 
 use serde::{Serialize};
 
-pub mod file_command;
+pub mod command_file;
 pub mod command;
 pub mod error;
 pub mod util;
@@ -11,7 +11,7 @@ pub mod log;
 use command::{Command};
 use error::{CoreError};
 
-pub fn export_variable(name: impl AsRef<str>, ref value: impl Serialize + Display) -> Result<(), CoreError> {
+pub fn export_variable(name: impl AsRef<str>, ref value: impl Serialize + FmtDisplay) -> Result<(), CoreError> {
     let command_message = util::to_command_value(value)?;
     let name = name.as_ref()
         .to_owned();
@@ -22,8 +22,8 @@ pub fn export_variable(name: impl AsRef<str>, ref value: impl Serialize + Displa
 
     if let Ok(variable) = std::env::var("GITHUB_ENV") {
         if !(variable.is_empty()) {
-            return Ok(file_command::issue_file_command("ENV", {
-                file_command::construct_key_value_message(name.as_str(), value)?
+            return Ok(command_file::issue_file_command("ENV", {
+                command_file::construct_key_value_message(name.as_str(), value)?
             })?)
         }
     }
@@ -40,8 +40,8 @@ pub fn add_path(path: impl AsRef<str>) -> Result<(), CoreError> {
     let path = path.as_ref();
 
     if std::env::var("GITHUB_PATH").is_ok() {
-        file_command::issue_file_command("PATH", {
-            file_command::construct_key_value_message("path", path)?
+        command_file::issue_file_command("PATH", {
+            command_file::construct_key_value_message("path", path)?
         })?;
     }
 
@@ -92,14 +92,14 @@ pub fn get_boolean_input(name: impl AsRef<str>) -> Option<bool> {
     None
 }
 
-pub fn set_output(name: impl AsRef<str>, ref value: impl Serialize + Display) -> Result<(), CoreError> {
+pub fn set_output(name: impl AsRef<str>, ref value: impl Serialize + FmtDisplay) -> Result<(), CoreError> {
     let name = name.as_ref()
         .to_owned();
 
     if let Ok(variable) = std::env::var("GITHUB_OUTPUT") {
         if !(variable.is_empty()) {
-            return Ok(file_command::issue_file_command("OUTPUT", {
-                file_command::construct_key_value_message(name, value)?
+            return Ok(command_file::issue_file_command("OUTPUT", {
+                command_file::construct_key_value_message(name, value)?
             })?)
         }
     }
@@ -109,14 +109,25 @@ pub fn set_output(name: impl AsRef<str>, ref value: impl Serialize + Display) ->
         .with_property(("name".to_owned(), name))?)?)
 }
 
-pub fn set_state(name: impl AsRef<str>, ref value: impl Serialize + Display) -> Result<(), CoreError> {
+pub fn is_debug() -> bool {
+    if let Ok(variable) = std::env::var("RUNNER_DEBUG") {
+        return match variable.as_str() {
+            "1" => true,
+            _ => false,
+        }
+    }
+
+    false
+}
+
+pub fn set_state(name: impl AsRef<str>, ref value: impl Serialize + FmtDisplay) -> Result<(), CoreError> {
     let name = name.as_ref()
         .to_owned();
 
     if let Ok(variable) = std::env::var("GITHUB_STATE") {
         if !(variable.is_empty()) {
-            return Ok(file_command::issue_file_command("STATE", {
-                file_command::construct_key_value_message(name, value)?
+            return Ok(command_file::issue_file_command("STATE", {
+                command_file::construct_key_value_message(name, value)?
             })?)
         }
     }
