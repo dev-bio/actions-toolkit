@@ -1,5 +1,5 @@
 [package]
-name = "actions-toolkit"
+name = "actions_toolkit"
 version = "0.1.0"
 edition = "2021"
 
