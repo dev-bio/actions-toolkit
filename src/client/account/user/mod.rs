@@ -1,0 +1,73 @@
+use std::{
+    
+    borrow::{Cow}, 
+
+    fmt::{
+
+        Formatter as FmtFormatter,
+        Display as FmtDisplay,
+        Result as FmtResult,
+    }, 
+};
+
+use thiserror::{Error};
+
+use crate::client::{
+
+    repository::{
+
+        HandleRepositoryError,
+    },
+
+    client::{
+
+        ClientError,
+        Client, 
+    }, 
+
+    models::common::user::{User},
+    
+    GitHubProperties, GitHubEndpoint,
+};
+
+#[derive(Error, Debug)]
+pub enum HandleUserError {
+    #[error("Client error!")]
+    Client(#[from] ClientError),
+    #[error("Repository error!")]
+    Repository(#[from] HandleRepositoryError),
+    #[error("Not a user, got: '{account:?}'")]
+    User { account: User },
+}
+
+#[derive(Clone, Debug)]
+pub struct HandleUser {
+    pub(crate) client: Client,
+    pub(crate) name: String,
+}
+
+impl<'a> GitHubEndpoint<'a> for HandleUser {
+    fn get_endpoint(&'a self) -> Cow<'a, str> {
+        format!("users/{self}").into()
+    }
+}
+
+impl<'a> GitHubProperties<'a> for HandleUser {
+    type Content = User;
+    type Parent = Client;
+
+    fn get_client(&'a self) -> &'a Client {
+        &(self.client)
+    }
+
+    fn get_parent(&'a self) -> &'a Self::Parent {
+        &(self.client)
+    }
+}
+
+impl FmtDisplay for HandleUser {
+    fn fmt(&self, fmt: &mut FmtFormatter<'_>) -> FmtResult {
+        let HandleUser { name, .. } = { self };
+        write!(fmt, "{name}")
+    }
+}
