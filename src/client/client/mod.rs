@@ -103,14 +103,14 @@ pub enum ClientRequestError {
 
 #[derive(Error, Debug)]
 pub enum ClientResponseError {
-    #[error("Unautorized!")]
-    Unauthorized { code: u16, message: Option<String> },
-    #[error("Invalid user input!")]
-    Validation { code: u16, message: Option<String> },
-    #[error("Nothing was found!")]
-    Nothing { code: u16, message: Option<String> },
-    #[error("Unhandled error!")]
-    Unhandled { code: u16, message: Option<String> },
+    #[error("{code} Unautorized, reason: '{message}'")]
+    Unauthorized { code: u16, message: String },
+    #[error("{code} Validation failed, reason: '{message}'")]
+    Validation { code: u16, message: String },
+    #[error("{code} Nothing found, reason: '{message}'")]
+    Nothing { code: u16, message: String },
+    #[error("{code} Unhandled, reason: '{message}'")]
+    Unhandled { code: u16, message: String },
     #[error("Malformed response, reason: '{reason}'")]
     Malformed { reason: String },
     #[error("Encoding error!")]
@@ -225,14 +225,14 @@ impl Client {
     pub fn try_get_repository(&self, name: impl AsRef<str>) -> GitHubResult<HandleRepository, GitHubError> {
         let name = name.as_ref();
 
-        Ok(self.try_get_account(name.clone())?
-            .try_get_repository(name.clone())?)
+        Ok(self.try_get_account(name)?
+            .try_get_repository(name)?)
     }
 
     pub fn try_get_all_repositories(&self, name: impl AsRef<str>) -> GitHubResult<Vec<HandleRepository>, GitHubError> {
         let name = name.as_ref();
 
-        Ok(self.try_get_account(name.clone())?
+        Ok(self.try_get_account(name)?
             .try_get_all_repositories()?)
     }
 
@@ -481,7 +481,7 @@ impl GitHubRequestBuilder {
             #[derive(Default, Debug)]
             #[derive(Deserialize)]
             struct Capsule {
-                message: Option<String>,
+                message: String,
             }
 
             let code = response.code();
