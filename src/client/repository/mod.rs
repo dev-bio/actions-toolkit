@@ -197,25 +197,57 @@ impl HandleRepository {
         Ok(())
     }
 
-    pub fn try_get_active_workflows(&self) -> GitHubResult<usize, HandleRepositoryError> {
+    /// Gets a list of active workflows and their run numbers in ascending order.
+    pub fn try_get_active_workflows(&self) -> GitHubResult<Vec<usize>, HandleRepositoryError> {
+        #[derive(Debug)]
+        #[derive(Deserialize)]
+        struct CapsuleRun {
+            run_number: usize,
+        }
+
         #[derive(Debug)]
         #[derive(Deserialize)]
         struct Capsule {
             total_count: usize,
+            workflow_runs: Vec<CapsuleRun>,
         }
 
-        let Capsule { total_count } = {
+        let mut collection = Vec::new();
+        let mut page = 0;
 
-            let ref query = [
-                ("status", "in_progress")
-            ];
+        loop {
 
-            self.get_client()
-                .get(format!("repos/{self}/actions/runs"))?
-                .query(query).send()?.json()?
-        };
+            page = { page + 1 };
 
-        Ok(total_count)
+            #[derive(Serialize)]
+            struct Query {
+                status: &'static str,
+                per_page: usize,
+                page: usize,
+            }
+
+            let ref query = Query {
+                status: "in_progress",
+                per_page: 100,
+                page,
+            };
+
+            let Capsule { total_count, workflow_runs } = {
+                self.get_client().get(format!("repos/{self}/actions/runs"))?
+                    .query(query).send()?.json()?
+            };
+
+            collection.extend(workflow_runs.iter()
+                .map(|CapsuleRun { run_number }| run_number));
+
+            if total_count < 100 { 
+                break 
+            }
+        }
+
+        collection.sort();
+
+        Ok(collection)
     }
 
     pub fn try_get_issue(&self, id: usize) -> GitHubResult<HandleIssue, HandleRepositoryError> {
