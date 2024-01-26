@@ -8,6 +8,7 @@ pub mod payloads;
 pub use payloads::{
     
     EventIssueComment,
+    EventSchedule,
     EventIssue, 
 };
 
@@ -20,7 +21,7 @@ pub enum Event {
     #[serde(rename = "issues")]
     Issue(EventIssue),
     #[serde(rename = "schedule")]
-    Schedule(()),
+    Schedule(EventSchedule),
 }
 
 impl Event {
