@@ -20,7 +20,7 @@ pub enum Event {
     #[serde(rename = "issues")]
     Issue(EventIssue),
     #[serde(rename = "schedule")]
-    Schedule,
+    Schedule(()),
 }
 
 impl Event {
