@@ -75,7 +75,67 @@ pub mod sha;
 
 use crate::client::{GitHubResult};
 
-use super::GitHubEndpoint;
+use super::{GitHubEndpoint};
+
+#[derive(Clone, Debug)]
+pub enum WorkflowStatus {
+    ActionRequired,
+    Cancelled,
+    Completed,
+    Failure,
+    InProgress,
+    Neutral,
+    Queued,
+    Requested,
+    Skipped,
+    Stale,
+    Success,
+    TimedOut,
+    Unknown,
+    Waiting,
+}
+
+impl WorkflowStatus {
+    pub fn to_some_str(&self) -> Option<&'static str> {
+        match self {
+            WorkflowStatus::ActionRequired => Some("action_required"),
+            WorkflowStatus::Cancelled => Some("cancelled"),
+            WorkflowStatus::Completed => Some("completed"),
+            WorkflowStatus::Failure => Some("failure"),
+            WorkflowStatus::InProgress => Some("in_progress"),
+            WorkflowStatus::Neutral => Some("neutral"),
+            WorkflowStatus::Queued => Some("queued"),
+            WorkflowStatus::Requested => Some("requested"),
+            WorkflowStatus::Skipped => Some("skipped"),
+            WorkflowStatus::Stale => Some("stale"),
+            WorkflowStatus::Success => Some("success"),
+            WorkflowStatus::TimedOut => Some("timed_out"),
+            WorkflowStatus::Unknown => None,
+            WorkflowStatus::Waiting => Some("waiting"),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for WorkflowStatus {
+    fn from(status: &'a str) -> Self {
+        match status {
+            "action_required" => WorkflowStatus::ActionRequired,
+            "cancelled" => WorkflowStatus::Cancelled,
+            "completed" => WorkflowStatus::Completed,
+            "failure" => WorkflowStatus::Failure,
+            "in_progress" => WorkflowStatus::InProgress,
+            "neutral" => WorkflowStatus::Neutral,
+            "queued" => WorkflowStatus::Queued,
+            "requested" => WorkflowStatus::Requested,
+            "skipped" => WorkflowStatus::Skipped,
+            "stale" => WorkflowStatus::Stale,
+            "success" => WorkflowStatus::Success,
+            "timed_out" => WorkflowStatus::TimedOut,
+            "waiting" => WorkflowStatus::Waiting,
+            _ => WorkflowStatus::Unknown,
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum HandleRepositoryError {
@@ -197,8 +257,8 @@ impl HandleRepository {
         Ok(())
     }
 
-    /// Gets a list of active workflows and their run numbers in ascending order.
-    pub fn try_get_active_workflows(&self) -> GitHubResult<Vec<usize>, HandleRepositoryError> {
+    /// Gets a list of workflow runs with a given state, returns their run numbers in ascending order.
+    pub fn try_get_workflow_runs(&self, status: impl Into<WorkflowStatus>) -> GitHubResult<Vec<usize>, HandleRepositoryError> {
         #[derive(Debug)]
         #[derive(Deserialize)]
         struct CapsuleRun {
@@ -214,38 +274,73 @@ impl HandleRepository {
 
         let mut collection = Vec::new();
         let mut page = 0;
+        
+        let workflow_status: WorkflowStatus = {
+            status.into()
+        };
 
-        loop {
+        if let Some(status) = workflow_status.to_some_str() {
+            
+            loop {
 
-            page = { page + 1 };
+                page = { page + 1 };
 
-            #[derive(Serialize)]
-            struct Query {
-                status: &'static str,
-                per_page: usize,
-                page: usize,
+                #[derive(Serialize)]
+                struct Query<'s> {
+                    status: &'s str,
+                    per_page: usize,
+                    page: usize,
+                }
+
+                let ref query = Query {
+                    status: status.as_ref(),
+                    per_page: 100,
+                    page,
+                };
+
+                let Capsule { total_count, workflow_runs } = {
+                    self.get_client().get(format!("repos/{self}/actions/runs"))?
+                        .query(query).send()?.json()?
+                };
+
+                collection.extend(workflow_runs.iter()
+                    .map(|CapsuleRun { run_number }| run_number));
+
+                if total_count < 100 { 
+                    break 
+                }
             }
 
-            let ref query = Query {
-                status: "in_progress",
-                per_page: 100,
-                page,
-            };
-
-            let Capsule { total_count, workflow_runs } = {
-                self.get_client().get(format!("repos/{self}/actions/runs"))?
-                    .query(query).send()?.json()?
-            };
-
-            collection.extend(workflow_runs.iter()
-                .map(|CapsuleRun { run_number }| run_number));
-
-            if total_count < 100 { 
-                break 
-            }
+            collection.sort();
         }
 
+        Ok(collection)
+    }
+
+    /// Gets a list of active workflows, returns their run numbers in ascending order.
+    pub fn try_get_active_workflows(&self) -> GitHubResult<Vec<usize>, HandleRepositoryError> {
+        #[derive(Debug)]
+        #[derive(Deserialize)]
+        struct CapsuleRun {
+            run_number: usize,
+        }
+
+        #[derive(Debug)]
+        #[derive(Deserialize)]
+        struct Capsule {
+            total_count: usize,
+            workflow_runs: Vec<CapsuleRun>,
+        }
+
+        let mut collection = Vec::new();
+        
+        collection.extend(self.try_get_workflow_runs(WorkflowStatus::InProgress)?);
+        collection.extend(self.try_get_workflow_runs(WorkflowStatus::Requested)?);
+        collection.extend(self.try_get_workflow_runs(WorkflowStatus::Waiting)?);
+        collection.extend(self.try_get_workflow_runs(WorkflowStatus::Queued)?);
+
         collection.sort();
+        collection.dedup();
 
         Ok(collection)
     }
