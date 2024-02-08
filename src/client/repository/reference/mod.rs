@@ -135,7 +135,7 @@ impl HandleReference {
             }
         };
 
-        if dbg!(dbg!(name).ends_with(dbg!(reference))) { Ok(parsed) } else { 
+        if name.ends_with(reference) { Ok(parsed) } else { 
             Err(ReferenceError::Nothing {
                 reference: reference.to_string()
             })

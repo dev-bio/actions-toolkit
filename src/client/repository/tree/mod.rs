@@ -195,8 +195,8 @@ where D: Deserializer<'de> {
 fn serialize_mode<S>(mode: &u32, serializer: S) -> GitHubResult<S::Ok, S::Error>
 where S: Serializer {
     serializer.serialize_str({
-        dbg!(format!("{mode:06o}")
-            .as_str())
+        format!("{mode:06o}")
+            .as_str()
     })
 }
 
