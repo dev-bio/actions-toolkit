@@ -7,6 +7,7 @@ use serde::{
 pub mod payloads;
 pub use payloads::{
     
+    EventWorkflowDispatch,
     EventIssueComment,
     EventSchedule,
     EventIssue, 
@@ -22,6 +23,8 @@ pub enum Event {
     Issue(EventIssue),
     #[serde(rename = "schedule")]
     Schedule(EventSchedule),
+    #[serde(rename = "workflow_dispatch")]
+    WorkflowDispatch(EventWorkflowDispatch),
 }
 
 impl Event {
