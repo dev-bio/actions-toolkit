@@ -174,13 +174,9 @@ impl HandleIssue {
     pub fn try_get_assignees(&self) -> GitHubResult<Vec<User>, IssueError> {
         let repository = self.get_parent();
 
-        let ref payload = serde_json::json!({
-            "assignees": [],
-        });
-
         let response = self.get_client()
-            .post(format!("repos/{repository}/issues/{self}/assignees"))?
-            .json(payload).send()?;
+            .get(format!("repos/{repository}/issues/{self}/assignees"))?
+            .send()?;
 
         #[derive(Debug)]
         #[derive(Deserialize)]
