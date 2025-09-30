@@ -175,7 +175,7 @@ impl HandleIssue {
         let repository = self.get_parent();
 
         let response = self.get_client()
-            .get(format!("repos/{repository}/issues/{self}/assignees"))?
+            .get(format!("repos/{repository}/issues/{self}"))?
             .send()?;
 
         #[derive(Debug)]
